@@ -185,7 +185,7 @@
         doc.setLineWidth(0.3);
         doc.roundedRect(M, y, CW, h, 2, 2, "S");
         const colW = CW / 2;
-        const rows = [["Nom", "Prénom"], ["Classe", "Date"]];
+        const rows = [["Nom", "Prénom"], ["Date"]];
         rows.forEach((row, r) => {
           row.forEach((label, c) => {
             const x = M + 5 + c * colW;
