@@ -13,6 +13,8 @@
 
   const MIN_DASHES = 1, MAX_DASHES = 20;
   const MIN_LINES = 1, MAX_LINES = 25;
+  const IMG_MAX_PX = 1400; // dimension maximale des photos après compression
+  const IMG_SIZES = { small: "Petite", medium: "Moyenne", large: "Grande" };
 
   let state = load() || defaultState();
 
@@ -34,7 +36,7 @@
   }
 
   function newQuestion(type) {
-    const q = { id: uid(), type, text: "" };
+    const q = { id: uid(), type, text: "", image: null };
     if (type === "multiple" || type === "single") {
       q.options = [
         { id: uid(), text: "", correct: false },
@@ -68,8 +70,18 @@
     return String.fromCharCode(65 + i);
   }
 
+  let storageWarned = false;
   function save() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* stockage indisponible */ }
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      storageWarned = false;
+    } catch (e) {
+      // Quota dépassé (photos trop nombreuses) : on prévient une fois
+      if (!storageWarned) {
+        storageWarned = true;
+        toast("Stockage du navigateur plein : pensez à exporter votre QCM (.json).", true);
+      }
+    }
   }
 
   function load() {
@@ -96,6 +108,7 @@
       .map((q) => {
         const base = newQuestion(q.type);
         base.text = String(q.text || "");
+        base.image = sanitizeImage(q.image);
         if (base.options) {
           const opts = Array.isArray(q.options) ? q.options : [];
           base.options = opts.map((o) => ({ id: uid(), text: String(o.text || ""), correct: !!o.correct }));
@@ -114,6 +127,38 @@
         return base;
       });
     return out;
+  }
+
+  function sanitizeImage(img) {
+    if (!img || typeof img !== "object") return null;
+    const data = String(img.data || "");
+    const w = +img.w, h = +img.h;
+    if (!/^data:image\/(jpeg|png);base64,/.test(data) || !(w > 0) || !(h > 0)) return null;
+    return { data, w, h, size: IMG_SIZES[img.size] ? img.size : "medium" };
+  }
+
+  // Redimensionne et compresse la photo (JPEG) pour limiter le poids
+  function readImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, IMG_MAX_PX / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.max(1, Math.round(img.naturalWidth * scale));
+        const h = Math.max(1, Math.round(img.naturalHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff"; // fond blanc pour les PNG transparents
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve({ data: canvas.toDataURL("image/jpeg", 0.85), w, h, size: "medium" });
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Image illisible")); };
+      img.src = url;
+    });
   }
 
   function findQ(id) {
@@ -139,6 +184,7 @@
     up: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>',
     down: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
     copy: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    image: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
     trash: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>',
     x: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
   };
@@ -155,6 +201,25 @@
     const t = TYPES[q.type];
     const total = state.questions.length;
     let body = "";
+
+    if (q.image) {
+      const sizes = Object.entries(IMG_SIZES)
+        .map(([k, label]) => `<button type="button" class="seg${q.image.size === k ? " active" : ""}" data-action="img-size" data-size="${k}">${label}</button>`)
+        .join("");
+      body += `<div class="q-image">
+        <img src="${q.image.data}" alt="Photo de la question ${index + 1}" />
+        <div class="q-image-bar">
+          <span class="sub-label">Taille dans le PDF</span>
+          <span class="segmented">${sizes}</span>
+          <span class="q-image-actions">
+            <button type="button" class="btn btn-ghost btn-sm" data-action="add-image">Remplacer</button>
+            <button type="button" class="btn btn-ghost btn-sm danger" data-action="remove-image">Retirer</button>
+          </span>
+        </div>
+      </div>`;
+    } else {
+      body += `<button type="button" class="add-photo" data-action="add-image">${ICONS.image}<span>Ajouter une photo</span></button>`;
+    }
 
     if (q.type === "multiple" || q.type === "single") {
       const inputType = q.type === "multiple" ? "checkbox" : "radio";
@@ -373,6 +438,15 @@
           if (inputs.length) inputs[inputs.length - 1].focus();
         }
         return;
+      case "add-image":
+        pickImage(q);
+        return;
+      case "remove-image":
+        q.image = null;
+        break;
+      case "img-size":
+        if (q.image && IMG_SIZES[btn.dataset.size]) q.image.size = btn.dataset.size;
+        break;
       case "remove-opt": {
         if (q.options.length <= 2) return;
         const optId = btn.closest(".option").dataset.opt;
@@ -389,6 +463,36 @@
     }
     save();
     rerender(q);
+  });
+
+  // ---------- Photos ----------
+  const imageInput = document.createElement("input");
+  imageInput.type = "file";
+  imageInput.accept = "image/*";
+  imageInput.hidden = true;
+  document.body.appendChild(imageInput);
+  let imageTarget = null;
+
+  function pickImage(q) {
+    imageTarget = q.id;
+    imageInput.value = "";
+    imageInput.click();
+  }
+
+  imageInput.addEventListener("change", async () => {
+    const file = imageInput.files[0];
+    const q = findQ(imageTarget);
+    imageInput.value = "";
+    if (!file || !q) return;
+    try {
+      const img = await readImage(file);
+      if (q.image) img.size = q.image.size;
+      q.image = img;
+      save();
+      rerender(q);
+    } catch (err) {
+      toast("Impossible de lire cette image.", true);
+    }
   });
 
   // ---------- Import / export / réinitialisation ----------

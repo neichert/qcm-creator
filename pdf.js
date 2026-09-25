@@ -349,8 +349,31 @@
       y += 2.5;
     }
 
+    // Taille maximale des photos selon le réglage choisi
+    const IMG_BOX = {
+      small: { w: CW * 0.35, h: 55 },
+      medium: { w: CW * 0.6, h: 85 },
+      large: { w: CW, h: 120 },
+    };
+
+    function photo(img) {
+      const box = IMG_BOX[img.size] || IMG_BOX.medium;
+      const scale = Math.min(box.w / img.w, box.h / img.h);
+      const w = img.w * scale, h = img.h * scale;
+      ensure(h + 2);
+      if (!dry) {
+        const x = M + (CW - w) / 2;
+        doc.addImage(img.data, "JPEG", x, y, w, h, undefined, "FAST");
+        draw(C.line);
+        doc.setLineWidth(0.3);
+        doc.rect(x, y, w, h, "S");
+      }
+      y += h + 7;
+    }
+
     function question(q, i) {
       questionHeader(q, i);
+      if (q.image) photo(q.image);
       if (q.type === "multiple" || q.type === "single") choices(q);
       else if (q.type === "short") writingLines(1, q.answer);
       else if (q.type === "long") writingLines(q.lines, q.answer);
@@ -384,8 +407,8 @@
     });
 
     // Fin du corrigé
-    if (isKey) {
-      if (y + 16 > BOTTOM) newPage();
+    // (omis s'il ne tient pas : le barème figure déjà dans l'en-tête)
+    if (isKey && y + 16 <= BOTTOM) {
       y += 4;
       fill(C.greenSoft);
       doc.roundedRect(M, y, CW, 11, 2, 2, "F");

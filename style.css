@@ -294,6 +294,53 @@ input::placeholder, textarea::placeholder { color: #94a3b8; }
 
 .answer-field input, .answer-field textarea { background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 40%, transparent); }
 
+/* ---------- Photos ---------- */
+.add-photo {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-weight: 600; font-size: 13px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.add-photo:hover { background: var(--accent-soft); border-color: var(--accent-2); color: var(--accent-2); }
+
+.q-image {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.q-image img {
+  display: block;
+  max-width: 100%;
+  max-height: 280px;
+  margin: 0 auto;
+  object-fit: contain;
+  background: #fff;
+}
+.q-image-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+.q-image-actions { margin-left: auto; display: flex; gap: 6px; }
+.btn-ghost.danger:hover { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+
+.segmented { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 9px; overflow: hidden; }
+.seg {
+  border: none; background: var(--surface);
+  padding: 5px 11px; font-size: 13px; font-weight: 600;
+  color: var(--muted); cursor: pointer;
+}
+.seg + .seg { border-left: 1px solid var(--border-strong); }
+.seg:hover { color: var(--text); }
+.seg.active { background: var(--accent-2); color: #fff; }
+
 /* ---------- Empty state ---------- */
 .empty-state {
   margin-top: 18px;

@@ -15,6 +15,8 @@ Application web (100 % navigateur, sans serveur) pour composer une évaluation e
 | Réponse longue | N lignes (réglable) | Réponse attendue |
 | Liste à tirets | N tirets (réglable) | Réponse de chaque tiret |
 
+Chaque question peut aussi recevoir une **photo** (bouton « Ajouter une photo »), affichée dans le sujet et le corrigé avec une taille réglable (petite, moyenne, grande). Les photos sont automatiquement redimensionnées et compressées.
+
 ## Utilisation
 
 Ouvrez simplement `index.html` dans un navigateur (aucune installation, fonctionne hors ligne).
